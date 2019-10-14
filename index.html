@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+@import url(http://fonts.googleapis.com/css?family=Open+Sans+Condensed:300|Josefin+Slab|Arvo|Lato|Vollkorn|Abril+Fatface|Old+Standard+TT|Droid+Sans|Lobster|Inconsolata|Montserrat|Playfair+Display|Karla|Alegreya|Libre+Baskerville|Merriweather|Lora|Archivo+Narrow|Neuton|Signika|Questrial|Fjalla+One|Bitter|Varela+Round);
+
+.background {
+  fill: #fff;
+  pointer-events: all;
+}
+
+.map-layer {
+  fill: #fff;
+  stroke: #aaa;
+}
+
+.label {
+    font-weight: normal;
+    text-anchor: middle;
+    cursor: default;
+    font-size:0.8em;
+  }
+
+.effect-layer{
+  pointer-events:none;
+}
+
+text{
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-weight: 300;
+}
+
+text.big-text{
+  font-size: 30px;
+  font-weight: 400;
+}
+
+.effect-layer text, text.dummy-text{
+  font-size: 12px;
+}
+
+</style>
+<body>
+
+<svg></svg>
+
+<script src="https://d3js.org/d3.v3.min.js"></script>
+<script>
+
+var width = 650,
+    height = 700,
+    centered;
+
+// Define color scale
+var color = d3.scale.linear()
+  .domain([1, 20])
+  .clamp(true)
+  .range(['#fff', '#409A99']);
+
+var projection = d3.geo.mercator()
+  .scale(2600)
+  // Customize the projection to make the center of Thailand become the center of the map
+  .rotate([-100.6331, -13.2])
+  .translate([width / 2, height / 2]);
+
+var path = d3.geo.path()
+  .projection(projection);
+
+// Set svg width & height
+var svg = d3.select('svg')
+  .attr('width', width)
+  .attr('height', height);
+
+// Add background
+svg.append('rect')
+  .attr('class', 'background')
+  .attr('width', width)
+  .attr('height', height)
+  .on('click', clicked);
+
+var g = svg.append('g');
+
+var effectLayer = g.append('g')
+  .classed('effect-layer', true);
+
+var mapLayer = g.append('g')
+  .classed('map-layer', true);
+var labelLayer = g.append('g')
+  .classed('label-layer', true);
+
+var dummyText = g.append('text')
+  .classed('dummy-text', true)
+  .attr('x', 10)
+  .attr('y', 30)
+  .style('opacity', 0);
+
+var bigText = g.append('text')
+  .classed('big-text', true)
+  .attr('x', 20)
+  .attr('y', 45);
+
+// Load map data
+d3.json('thailandmap.json', function(error, mapData) {
+  var features = mapData.features;
+
+  //console.log( function(n){ var names = [] ; for(x in n) names.push(features[x].properties.name);return names } (features))
+//   for(i in features) {
+//     if ( features[i].properties.name == 'Amnat Charoen') features[i].properties.name_th = 'อำนาจเจริญ'
+//     if ( features[i].properties.name == 'Ang Thong') features[i].properties.name_th = 'อ่างทอง'
+//     if ( features[i].properties.name == 'Bangkok Metropolis') features[i].properties.name_th = 'กรุงเทพมหานคร'
+//     if ( features[i].properties.name == 'Bueng Kan') features[i].properties.name_th = 'บึงกาฬ'
+//     if ( features[i].properties.name == 'Buri Ram') features[i].properties.name_th = 'บุรีรัมย์'
+//     if ( features[i].properties.name == 'Chachoengsao') features[i].properties.name_th = 'ฉะเชิงเทรา'
+//     if ( features[i].properties.name == 'Chai Nat') features[i].properties.name_th = 'ชัยนาท'
+//     if ( features[i].properties.name == 'Chaiyaphum') features[i].properties.name_th = 'ชัยภูมิ'
+//     if ( features[i].properties.name == 'Chanthaburi') features[i].properties.name_th = 'จันทบุรี'
+//     if ( features[i].properties.name == 'Chiang Mai') features[i].properties.name_th = 'เชียงใหม่'
+//     if ( features[i].properties.name == 'Chiang Rai') features[i].properties.name_th = 'เชียงราย'
+//     if ( features[i].properties.name == 'Chon Buri') features[i].properties.name_th = 'ชลบุรี'
+//     if ( features[i].properties.name == 'Chumphon') features[i].properties.name_th = 'ชุมพร'
+//     if ( features[i].properties.name == 'Kalasin') features[i].properties.name_th = 'กาฬสินธุ์'
+//     if ( features[i].properties.name == 'Kamphaeng Phet') features[i].properties.name_th = 'กำแพงเพชร'
+//     if ( features[i].properties.name == 'Kanchanaburi') features[i].properties.name_th = 'กาญจนบุรี'
+//     if ( features[i].properties.name == 'Khon Kaen') features[i].properties.name_th = 'ขอนแก่น'
+//     if ( features[i].properties.name == 'Krabi') features[i].properties.name_th = 'กระบี่'
+//     if ( features[i].properties.name == 'Lampang') features[i].properties.name_th = 'ลำปาง'
+//     if ( features[i].properties.name == 'Lamphun') features[i].properties.name_th = 'ลำพูน'
+//     if ( features[i].properties.name == 'Loei') features[i].properties.name_th = 'เลย'
+//     if ( features[i].properties.name == 'Lop Buri') features[i].properties.name_th = 'ลพบุรี'
+//     if ( features[i].properties.name == 'Mae Hong Son') features[i].properties.name_th = 'แม่ฮ่องสอน'
+//     if ( features[i].properties.name == 'Maha Sarakham') features[i].properties.name_th = 'มหาสารคาม'
+//     if ( features[i].properties.name == 'Mukdahan') features[i].properties.name_th = 'มุกดาหาร'
+//     if ( features[i].properties.name == 'Nakhon Nayok') features[i].properties.name_th = 'นครนายก'
+//     if ( features[i].properties.name == 'Nakhon Pathom') features[i].properties.name_th = 'นครปฐม'
+//     if ( features[i].properties.name == 'Nakhon Phanom') features[i].properties.name_th = 'นครพนม'
+//     if ( features[i].properties.name == 'Nakhon Ratchasima') features[i].properties.name_th = 'นครราชสีมา'
+//     if ( features[i].properties.name == 'Nakhon Sawan') features[i].properties.name_th = 'นครสวรรค์'
+//     if ( features[i].properties.name == 'Nakhon Si Thammarat') features[i].properties.name_th = 'นครศรีธรรมราช'
+//     if ( features[i].properties.name == 'Nan') features[i].properties.name_th = 'น่าน'
+//     if ( features[i].properties.name == 'Narathiwat') features[i].properties.name_th = 'นราธิวาส'
+//     if ( features[i].properties.name == 'Nong Bua Lam Phu') features[i].properties.name_th = 'หนองบัวลำภู'
+//     if ( features[i].properties.name == 'Nong Khai') features[i].properties.name_th = 'หนองคาย'
+//     if ( features[i].properties.name == 'Nonthaburi') features[i].properties.name_th = 'นนทบุรี'
+//     if ( features[i].properties.name == 'Pathum Thani') features[i].properties.name_th = 'ปทุมธานี'
+//     if ( features[i].properties.name == 'Pattani') features[i].properties.name_th = 'ปัตตานี'
+//     if ( features[i].properties.name == 'Phangnga') features[i].properties.name_th = 'พังงา'
+//     if ( features[i].properties.name == 'Phatthalung') features[i].properties.name_th = 'พัทลุง'
+//     if ( features[i].properties.name == 'Phayao') features[i].properties.name_th = 'พะเยา'
+//     if ( features[i].properties.name == 'Phetchabun') features[i].properties.name_th = 'เพชรบูรณ์'
+//     if ( features[i].properties.name == 'Phetchaburi') features[i].properties.name_th = 'เพชรบุรี'
+//     if ( features[i].properties.name == 'Phichit') features[i].properties.name_th = 'พิจิตร'
+//     if ( features[i].properties.name == 'Phitsanulok') features[i].properties.name_th = 'พิษณุโลก'
+//     if ( features[i].properties.name == 'Phra Nakhon Si Ayutthaya') features[i].properties.name_th = 'พระนครศรีอยุธยา'
+//     if ( features[i].properties.name == 'Phrae') features[i].properties.name_th = 'แพร่'
+//     if ( features[i].properties.name == 'Phuket') features[i].properties.name_th = 'ภูเก็ต'
+//     if ( features[i].properties.name == 'Prachin Buri') features[i].properties.name_th = 'ปราจีนบุรี'
+//     if ( features[i].properties.name == 'Prachuap Khiri Khan') features[i].properties.name_th = 'ประจวบคีรีขันธ์'
+//     if ( features[i].properties.name == 'Ranong') features[i].properties.name_th = 'ระนอง'
+//     if ( features[i].properties.name == 'Ratchaburi') features[i].properties.name_th = 'ราชบุรี'
+//     if ( features[i].properties.name == 'Rayong') features[i].properties.name_th = 'ระยอง'
+//     if ( features[i].properties.name == 'Roi Et') features[i].properties.name_th = 'ร้อยเอ็ด'
+//     if ( features[i].properties.name == 'Sa Kaeo') features[i].properties.name_th = 'สระแก้ว'
+//     if ( features[i].properties.name == 'Sakon Nakhon') features[i].properties.name_th = 'สกลนคร'
+//     if ( features[i].properties.name == 'Samut Prakan') features[i].properties.name_th = 'สมุทรปราการ'
+//     if ( features[i].properties.name == 'Samut Sakhon') features[i].properties.name_th = 'สมุทรสาคร'
+//     if ( features[i].properties.name == 'Samut Songkhram') features[i].properties.name_th = 'สมุทรสงคราม'
+//     if ( features[i].properties.name == 'Saraburi') features[i].properties.name_th = 'สระบุรี'
+//     if ( features[i].properties.name == 'Satun') features[i].properties.name_th = 'สตูล'
+//     if ( features[i].properties.name == 'Si Sa Ket') features[i].properties.name_th = 'ศรีสะเกษ'
+//     if ( features[i].properties.name == 'Sing Buri') features[i].properties.name_th = 'สิงห์บุรี'
+//     if ( features[i].properties.name == 'Songkhla') features[i].properties.name_th = 'สงขลา'
+//     if ( features[i].properties.name == 'Sukhothai') features[i].properties.name_th = 'สุโขทัย'
+//     if ( features[i].properties.name == 'Suphan Buri') features[i].properties.name_th = 'สุพรรณบุรี'
+//     if ( features[i].properties.name == 'Surat Thani') features[i].properties.name_th = 'สุราษฎร์ธานี'
+//     if ( features[i].properties.name == 'Surin') features[i].properties.name_th = 'สุรินทร์'
+//     if ( features[i].properties.name == 'Tak') features[i].properties.name_th = 'ตาก'
+//     if ( features[i].properties.name == 'Trang') features[i].properties.name_th = 'ตรัง'
+//     if ( features[i].properties.name == 'Trat') features[i].properties.name_th = 'ตราด'
+//     if ( features[i].properties.name == 'Ubon Ratchathani') features[i].properties.name_th = 'อุบลราชธานี'
+//     if ( features[i].properties.name == 'Udon Thani') features[i].properties.name_th = 'อุดรธานี'
+//     if ( features[i].properties.name == 'Uthai Thani') features[i].properties.name_th = 'อุทัยธานี'
+//     if ( features[i].properties.name == 'Uttaradit') features[i].properties.name_th = 'อุตรดิตถ์'
+//     if ( features[i].properties.name == 'Yala') features[i].properties.name_th = 'ยะลา'
+//     if ( features[i].properties.name == 'Yasothon') features[i].properties.name_th = 'ยโสธร'
+    
+//       // features[i].properties.name_th = features[i].properties.name + '_th'
+//   }
+//   console.log( features.map( f => f.properties.name_th ).sort())
+//   console.log( JSON.stringify(mapData) )
+  
+  // Update color scale domain based on data
+  // color.domain([0, d3.max(features, nameLength)]);
+
+  //set random color range
+  color.domain([0, 50000000]);
+  color.range(['#fff', '#0EB9C5'])
+  for(i in features) { 
+      // features[i].properties.value = Math.floor(Math.random() * 500000) * 100
+      // if(features[i].properties.value < 25000000 ) features[i].properties.value = 0
+      features[i].properties.value = 0
+      if(features[i].properties.name_th == 'กรุงเทพมหานคร') features[i].properties.value = 42000000
+      if(features[i].properties.name_th == 'เชียงใหม่') features[i].properties.value = 10000000
+      if(features[i].properties.name_th == 'ราชบุรี') features[i].properties.value = 6000000
+      if(features[i].properties.name_th == 'นครสวรรค์') features[i].properties.value = 26000000
+      features[i].properties.color =  color( features[i].properties.value ) 
+    }
+  
+
+    labelLayer.selectAll('path')
+      .data(features)
+    .enter().append("text")
+    .attr("class", "label")
+    .attr("transform", function(d) { return "translate(" + path.centroid(d) + ")"; })
+    .text(function(d) { return (d.properties.value>0?d.properties.value/1000000:'');} )
+      ;
+      
+  // Draw each province as a path
+  mapLayer.selectAll('path')
+      .data(features)
+    .enter().append('path')
+      .attr('d', path)
+      .attr('vector-effect', 'non-scaling-stroke')
+      .style('fill', fillFn)
+      .on('mouseover', mouseover)
+      .on('mouseout', mouseout)
+      .on('click', clicked)
+      ;
+  
+
+    
+});
+
+
+
+// Get province name
+function nameFn(d){
+  return d && d.properties ? d.properties.name_th + ' : ' +  d.properties.value : null;
+}
+
+// Get province name length
+function nameLength(d){
+  var n = nameFn(d);
+  return n ? n.length : 0;
+}
+
+// Get province color
+function fillFn(d){
+ // return color(nameLength(d));
+  // return '#fff';
+  return (d.properties.color)
+}
+
+// When clicked, zoom in
+function clicked(d) {
+return false // not use
+  var x, y, k;
+
+  // Compute centroid of the selected path
+  if (d && centered !== d) {
+    var centroid = path.centroid(d);
+    x = centroid[0];
+    y = centroid[1];
+    k = 4;
+    centered = d;
+  } else {
+    x = width / 2;
+    y = height / 2;
+    k = 1;
+    centered = null;
+  }
+
+  // Highlight the clicked province
+  mapLayer.selectAll('path')
+    .style('fill', function(d){return centered && d===centered ? '#D5708B' : fillFn(d);});
+
+  // Zoom
+  g.transition()
+    .duration(750)
+    .attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')scale(' + k + ')translate(' + -x + ',' + -y + ')');
+}
+
+function mouseover(d){
+  // Highlight hovered province
+  d3.select(this).style('fill', 'orange');
+
+  // Draw effects
+  // textArt(nameFn(d));
+  bigText.text(nameFn(d));
+}
+
+function mouseout(d){
+  // Reset province color
+  mapLayer.selectAll('path')
+    .style('fill', function(d){return centered && d===centered ? '#D5708B' : fillFn(d);});
+
+  // Remove effect text
+  effectLayer.selectAll('text').transition()
+    .style('opacity', 0)
+    .remove();
+
+  // Clear province name
+  bigText.text('');
+}
+
+// Gimmick
+// Just me playing around.
+// You won't need this for a regular map.
+
+var BASE_FONT = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+
+var FONTS = [
+  "Open Sans",
+  "Josefin Slab",
+  "Arvo",
+  "Lato",
+  "Vollkorn",
+  "Abril Fatface",
+  "Old StandardTT",
+  "Droid+Sans",
+  "Lobster",
+  "Inconsolata",
+  "Montserrat",
+  "Playfair Display",
+  "Karla",
+  "Alegreya",
+  "Libre Baskerville",
+  "Merriweather",
+  "Lora",
+  "Archivo Narrow",
+  "Neuton",
+  "Signika",
+  "Questrial",
+  "Fjalla One",
+  "Bitter",
+  "Varela Round"
+];
+
+function textArt(text){
+  // Use random font
+  var fontIndex = Math.round(Math.random() * FONTS.length);
+  var fontFamily = FONTS[fontIndex] + ', ' + BASE_FONT;
+
+  bigText
+    .style('font-family', fontFamily)
+    .text(text);
+
+  // Use dummy text to compute actual width of the text
+  // getBBox() will return bounding box
+  dummyText
+    .style('font-family', fontFamily)
+    .text(text);
+  var bbox = dummyText.node().getBBox();
+
+  var textWidth = bbox.width;
+  var textHeight = bbox.height;
+  var xGap = 3;
+  var yGap = 1;
+
+  // Generate the positions of the text in the background
+  var xPtr = 0;
+  var yPtr = 0;
+  var positions = [];
+  var rowCount = 0;
+  while(yPtr < height){
+    while(xPtr < width){
+      var point = {
+        text: text,
+        index: positions.length,
+        x: xPtr,
+        y: yPtr
+      };
+      var dx = point.x - width/2 + textWidth/2;
+      var dy = point.y - height/2;
+      point.distance = dx*dx + dy*dy;
+
+      positions.push(point);
+      xPtr += textWidth + xGap;
+    }
+    rowCount++;
+    xPtr = rowCount%2===0 ? 0 : -textWidth/2;
+    xPtr += Math.random() * 10;
+    yPtr += textHeight + yGap;
+  }
+
+  var selection = effectLayer.selectAll('text')
+    .data(positions, function(d){return d.text+'/'+d.index;});
+
+  // Clear old ones
+  selection.exit().transition()
+    .style('opacity', 0)
+    .remove();
+
+  // Create text but set opacity to 0
+  selection.enter().append('text')
+    .text(function(d){return d.text;})
+    .attr('x', function(d){return d.x;})
+    .attr('y', function(d){return d.y;})
+    .style('font-family', fontFamily)
+    .style('fill', '#777')
+    .style('opacity', 0);
+
+  selection
+    .style('font-family', fontFamily)
+    .attr('x', function(d){return d.x;})
+    .attr('y', function(d){return d.y;});
+
+  // Create transtion to increase opacity from 0 to 0.1-0.5
+  // Add delay based on distance from the center of the <svg> and a bit more randomness.
+  selection.transition()
+    .delay(function(d){
+      return d.distance * 0.01 + Math.random()*1000;
+    })
+    .style('opacity', function(d){
+      return 0.1 + Math.random()*0.4;
+    });
+}
+
+</script>
